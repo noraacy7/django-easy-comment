@@ -1,38 +1,23 @@
-# django-easy-comment
- django-easy-comment 是一个评论插件，功能包括评论，层级回复，点赞，（email && 站内）通知。在线参考地址：**http://www.aaron-zhao.com/post/6/#cmt-form**
- ![image](http://www.aaron-zhao.com/media/upload/Aaron/2017/08/02/vzlhpz.png)
+博客停更（懒~）了好长时间，在这期间还是有不少网友跟我留言、qq交流问题，让我觉得有责任把它做得更好，于是最近抽时间把代码重写了一下，添加了注释。
 
- 评论框编辑器使用的[**django-ckeditor**](https://github.com/django-ckeditor/django-ckeditor)
+与之前的版本相比主要的差别是现在评论使用ajax异步加载、支持评论分页（下拉无限加载），无须再绑定模型，可以评论任何对象（也可以是空的），目前采用的一级评论，按时间倒序，但是评论模型依旧继承了MPTTModel来记录层级顺序，未来会加入二级评论和多层级评论的模板供大家选择。
 
- 层级回复功能用[**django-mptt**](https://github.com/django-mptt/django-mptt)实现的，mptt在后台会记录层级回复的顺序
+项目地址
 
- 通知功能使用的[**django-notifications-hq**](https://github.com/django-notifications/django-notifications)
+https://github.com/r26zhao/django-easy-comment  如果觉得对你有所帮助的话，请给个star (◕ᴗ◕✿)
+开发环境：py3.6、Django1.11
 
-## 更新 2017.08.07
-### 增加站内实时通知
-开启站内通知，在```base.html```模板里引入```notifications/notice.js```
+目前没有在py2.7测试过，但根据使用py2.7的小伙伴反应，会报出编码错误，由easy_comment/handlers.py 文件里的中文引起的，把里面的中文处理一下即可解决。
+安装
 
+1. 从github把easy_comment、online_status和requirements拉取到本地项目
 
-```
-<script src="{% static 'notifications/notice.js' %}"></script>
-```
+2. 安装依赖包
 
-如果想要显示未读通知的数量，写一个```<span class="live-notify-badge"><span>```，```notice.js```脚本会自动更新，每30秒一次。
-## 开发环境
-django 1.11, python 3.4
-## 安装
-1. 使用pip安装```django-ckeditor```, ```django-mptt```, ```django-notifications-hq```
+pip install -r requirements/requirements.txt
 
-```
-pip install django-ckeditor
-pip install django-mptt
-pip install django-notifications-hq
-```
+3. 在settings.py里把上面安装的app加入到INSTALLED_APPS中
 
-2. 从github把```easy_comment``` 和 ```online_status```拉取到本地项目
-3. 在settings.py里把上面安装的app加入到```INSTALLED_APPS```中
-
-```
 INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
@@ -42,16 +27,8 @@ INSTALLED_APPS = [
     'online_status',
 ]
 
-COMMENT_ENTRY_MODEL = 'xxx' # 格式是 app_name+model_name
-AUTH_USER_MODEL = 'xxx'     # 格式是 app_name+model_name
-```
-```COMMENT_ENTRY_MODEL```设置将评论绑定到哪个object上，比如我的评论是绑定到blog app下的Post模型中，```COMMENT_ENTRY_MODEL = "blog.post"```
+添加ckeditor相关设置，使编辑器可以添加代码块，上传图片
 
-```AUTH_USER_MODEL``` 规定了使用User的model，默认是```auth.user```, django自带的用户模型
-
-添加```ckeditor```相关设置，使编辑器可以添加代码块，上传图片
-
-```
 #ckeditor setup
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
@@ -59,8 +36,7 @@ CKEDITOR_UPLOAD_PATH = 'upload/'
 CKEDITOR_IMAGE_BACKEND = 'pillow'
 CKEDITOR_CONFIGS = {
     'default': {
-        # 编辑器的宽高请根据你的页面自行设置
-        'width':'730px',
+        'width':'auto',
         'height':'150px',
         'image_previewText':' ',
         'tabSpaces': 4,
@@ -79,12 +55,23 @@ CKEDITOR_ALLOW_NONIMAGE_FILES = False
 CKEDITOR_RESTRICT_BY_USER = True
 CKEDITOR_RESTRICT_BY_DATE = True
 CKEDITOR_BROWSE_SHOW_DIRS = True
-```
-更多ckeditor的设置，可以参考下这里：[**django博客开发：添加富文本编辑器ckeditor**](http://www.aaron-zhao.com/post/1/)
 
-4. 在项目的urls.py里加入easy_comment, ckeditor_upload 和 notification的url
+更多ckeditor的设置，可以参考下这里：django博客开发：添加富文本编辑器ckeditor
 
-```
+4. settings.py里的其他设置
+
+AUTH_USER_MODEL = 'xxx'     # 格式是 app_name+model_name
+SEND_NOTIFICATION_EMAIL = False
+COMMENT_PAGINATE_BY = 10
+
+AUTH_USER_MODEL 规定了使用User的model，默认是auth.User, django自带的用户模型
+
+SEND_NOTIFICATION_EMAIL 设置是否接收评论通知邮件，默认False 不接收
+
+COMMENT_PAGINATE_BY 设置评论分页，比如10，就是每10条评论一页，如果设置为None，则不分页，默认10
+
+5. 在项目的urls.py里加入easy_comment, ckeditor_upload 和 notification的url
+
 from django.conf.urls import url,include
 from django.conf.urls.static import static
 from django.conf import settings
@@ -96,111 +83,61 @@ urlpatterns = [
     url(r'', include('easy_comment.urls')),
     url(r'^notifications/', include(notifications.urls, namespace='notifications')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-```
-5. 不要忘记数据库迁移
 
-```
+6. 迁移数据库
+
 python manage.py makemigrations
 python manage.py migrate
-```
 
-## 使用
-### example
-在easy_comment的templates中我写了两个模板文件```comment_form.html``` 和 ```comment_list.html```，分别在用来显示评论框和评论列表。在你的```blog_detail.html```模板中，把它们放在显示评论的位置即可。
+使用模板
 
-```
-{% include 'easy_comment/comment_form.html' with post=传递给模板的变量名 %}
-{% include 'easy_comment/comment_list.html' with post=传递给模板的变量名 %}
-```
-这里的post是detai view通过context字典传递给模板的变量，如果你使用了不一样的变量名，比如```context = {"article" : article}```, 则需要```post=article```
+在detail.html（显示文章）模板里，显示评论的地方引入评论模板
 
-评论模板使用了bootstrap，评论、点赞在前端用ajax处理post请求，需要引入静态文件
+{% include 'easy_comment/comment.html' with entry=传递给模板的变量名 %}
 
-```
-<link rel="stylesheet" href="//cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css">
-<script src="http://cdn.bootcss.com/jquery/2.1.4/jquery.min.js"></script>
-<!-- 评论框、评论列表和通知列表的样式 -->
+这里的entry是detai视图函数通过context字典传递给模板的变量，如果你使用了不一样的变量名，比如context = {"article" : article}, 则写entry=article
+评论对象为空
+
+如果你评论的对象是空的，需要在comment.html的第129、147行把 {% url 'easy_comment:comment_list' entry.id %} 改为 {% url 'easy_comment:comment_list_no_object' %}
+引入静态文件
+
+<link href="https://cdn.bootcss.com/Buttons/2.0.0/css/buttons.min.css" rel="stylesheet">
+<link href="https://cdn.bootcss.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
+<!-- 评论框、评论列表的样式 -->
 <link rel="stylesheet" href="{% static 'easy_comment/css/comment.css' %}">
 
 <!-- 代码块的高亮 -->
 <link rel="stylesheet" href="{% static 'easy_comment/css/prism.css' %}">
+<!-- jquery要放在其他script上面 -->
+<script src="https://cdn.bootcss.com/jquery/1.8.3/jquery.min.js"></script>
 <script src="{% static 'ckeditor/ckeditor/plugins/prism/lib/prism/prism_patched.min.js' %}"></script>
-```
 
+通知功能
 
-## 自定义模板
-如果你要自定义评论模板的话，下面的模板标签可以方便使用
-### 模板标签
-在使用模板标签之前，先加载```{% load comment_tags %}```
-
-```generate_form_for``` 在模板中生成评论框，用法如下
-
-```
-<!-- post是你通过view传递给模板的 -->
-{% generate_form_for post as form %}
-
-<form class="comment-form" id="cmt-form" method="post" action="{% url'easy_comment:submit_comment' post.id %}">
-   {% csrf_token %}
-   {% for field in form %}
-   {{ field }}
-   {{ field.errors }}
-   {% endfor %}
-   <button class="btn btn-primary pull-right" type="submit">提交评论</button>
-</form>
-
-<!-- 在非admin后台的地方使用django-ckeditor，需要引入这两个js -->
-<script type="text/javascript" src="{% static "ckeditor/ckeditor-init.js" %}"></script>
-<script type="text/javascript" src="{% static "ckeditor/ckeditor/ckeditor.js" %}"></script>
-```
-```get_comment_list_of``` 获取一篇文章的评论列表, **example:**
-
-```
-{% get_comment_list_of post as comment_list %}
-```
-```get_comments_user_count``` 获取一篇文章的评论人数， **example:**
-
-```
-{% get_comments_user_count post as user_count %}
-```
-```get_like_count``` 和 ```get_dislike_count``` 分别用了获取某条评论的点赞数量和踩的数量， **example**
-
-```
-{% get_like_count comment as like_num %}
-```
-```get_comment_rank``` 获得评论数排名前5（默认）的文章列表, **example**
-
-```
-{% get_comment_rank as post_list %}
-```
-## 评论通知
-每当用户发表一条评论、回复或者点赞、踩，都会生成notification实例，管理员（admin）可以收到所有通知，普通用户可以收到与自己相关的评论、回复和点赞（踩 看不到）。
+每当用户发表一条评论、回复，都会生成一个notification实例，管理员（admin）可以收到所有通知，普通用户仅可以收到与自己相关的回复通知，自己对自己的回复是不会产生通知的。
+添加管理员
 
 在settings.py里添加ADMINS，需要提供管理员的用户名和邮箱。
-```
+
 ADMINS = (('Aaron', 'rudy710@qq.com'),)  # 网站管理员
-```
-开启站内通知，在base.html模板里引入notifications/notice.js
 
-```
+开启站内通知
+
+在base.html模板里引入notifications/notice.js
+
 <script src="{% static 'notifications/notice.js' %}"></script>
-```
-如果想要显示未读通知的数量，写一个```<span class="live-notify-badge"><span>```，notice.js脚本会自动更新，每30秒一次。
-![image](http://www.aaron-zhao.com//media/upload/Aaron/2017/08/03/ofpkpf.png)
 
-```/notifications/``` 当前登录用户的所有通知
+如果想要显示未读通知的数量，写一个<span class="live-notify-badge"></span>，notice.js脚本会自动更新并向这个span里添加数据，每30秒一次。
 
-```/notifications/unread``` 当前用户的未读通知
+ 
 
+/notifications/ 当前登录用户的所有通知
 
-### 模板标签
-使用之前先加载  ```{% load notifications_tags %}```
+/notifications/unread 当前用户的未读通知
+开启邮件通知
 
-```{% notifications_unread %}``` 获取未读通知数
-
-## 邮件通知
 默认情况下是不发邮件通知的。开启邮件通知功能后，只有当用户不在线的情况下，才会发邮件。
 
-```
 SEND_NOTIFICATION_EMAIL = True   # 开启邮件通知
 
 # SMTP设置
@@ -209,38 +146,32 @@ EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 EMAIL_PORT =
 EMAIL_USE_SSL =
-```
-添加```'online_status.middleware.OnlineStatusMiddleware'``` 到 ```MIDDLEWARE```
 
-```
+添加'online_status.middleware.OnlineStatusMiddleware' 到 MIDDLEWARE
+
 MIDDLEWARE = [
     ···
     ···
     ···
     'online_status.middleware.OnlineStatusMiddleware',
 ]
-```
-判断用户是否在线，是通过判断用户在一定时间范围内是否有发送新的request，如果超出时间范围，视为不在线。这是时间是通过 ```USER_ONLINE_TIMEOUT``` 来设置，默认是600秒，也就是10分钟。
 
-```
 USER_ONLINE_TIMEOUT = 600
-```
-## 关于django-ckeditor
-默认情况下django-ckeditor设置的只允许管理员发送图片，要让普通用户也可以发图片的话，需要ckeditor_uploader/urls.py里进行修改,它的```upload``` 和 ```browse```方法用了```staff_member_required```装饰器，把它换成```login_required```装饰器即可。
 
-```
+判断用户是否在线，是通过判断用户在一定时间范围内是否有发送新的request，如果超出时间范围，视为不在线。这是时间是通过 USER_ONLINE_TIMEOUT 来设置，默认是600秒，也就是10分钟。
+关于django-ckeditor
+
+默认情况下django-ckeditor设置的只允许管理员发送图片，要让普通用户也可以发图片的话，需要ckeditor_uploader/urls.py里进行修改,它的upload 和 browse方法用了staff_member_required装饰器，把它换成login_required装饰器即可。
+
 if django.VERSION >= (1, 8):
     urlpatterns = [
         url(r'^upload/', login_required(views.upload), name='ckeditor_upload'),
         url(r'^browse/', never_cache(login_required(views.browse)), name='ckeditor_browse'),
     ]
-```
 
-## 联系
-Email：rudy710@qq.com
+总结
 
-QQ：370297300
+其实实现一个评论功能并不难，更多的时间是花在如何在前端显示加载评论。本文采用的是后端view返回json，然后前端调用api，ajax异步加载，某种程度上也算是前后分离了。说到前后分离，就要扯到restful api了，后面会介绍下django-rest-framework 的使用（给自己挖个坑）。
 
-Blog：www.aaron-zhao.com
 
-有问题的话，欢迎大家随时交流
+ok，扯到这里吧，大家有任何问题，随时交流，评论区留言或者qq（370297300）联系。
